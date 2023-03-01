@@ -1,4 +1,4 @@
-"SPDX-License-Identifier: <SPDX-License>"
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
 interface IPool {

@@ -1,4 +1,4 @@
-"SPDX-License-Identifier: <SPDX-License>"
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -45,7 +45,8 @@ contract Pool is Ownable,IPool {
 
     uint256 public settings;
     address public tokenAddress;
-    uint256 public liquidity;
+    uint256 public liquidity;   //Be aware we should use liquidity,not this.balance to get liquidity, because maybe LP
+                                //removed liquidity but not withdraw.
     address private managerAddress;
     mapping(address => uint256) private pendingWithdraw;
 
@@ -73,7 +74,7 @@ contract Pool is Ownable,IPool {
     }
 
     function checkSettings(
-        uint256 settings
+        uint256 newSettings
     ) internal pure returns (bool){
         //TODO：check the input settings
         return true;
