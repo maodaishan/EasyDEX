@@ -14,9 +14,10 @@ library MathUtils {
     ) internal pure returns(uint256){
         if(targetDecimal == originDecimal){
             return value;
-        }else{
-            //TODO consider exponentiation is negative
+        }else if(targetDecimal > originDecimal){
             return value*10**(targetDecimal - originDecimal);
+        }else{
+            return value/(10**(originDecimal-targetDecimal));
         }
     }
 
