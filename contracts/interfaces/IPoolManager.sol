@@ -51,6 +51,10 @@ interface IPoolManager {
     /// @return price the ELF price
     function getELFPrice() external view returns (uint price, uint8 decimal);
 
+    /// @notice get TVL , will sum up all pool values.
+    /// @return tvl , in USD, decimal = 0
+    function getTVL() external view returns (uint256 tvl);
+
     /// @notice LP calls this function to add liquidity to the pool
     /// @param tokenAddr, the token LP wish to use to supply liquidity
     /// @param addedLiquidity, the liquidity will be added to this pool,if the pool is ETH, it should equal to msg.value

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "./interfaces/IPoolManager.sol";
-//import "./interfaces/IPool.sol";
+import "./interfaces/IEasyToken.sol";
 import "./Pool.sol";
 import "./utils/PriceHelper.sol";
 import "./ELFToken.sol";
@@ -11,6 +11,8 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 
 contract PoolManager is IPoolManager,PriceHelper,Ownable{
+    uint8 private constant DEFAULT_ELF_PRICE_DECIMAL = 8;
+
     struct PoolAddr {
         address poolAddr;
         address tokenAddr;
@@ -39,6 +41,7 @@ contract PoolManager is IPoolManager,PriceHelper,Ownable{
         //remember in js,call grantRole to permit PoolManager mint/burn ELF token.
         ELFAddress = _ELFAddress;
         EASYAddress = _EASYAddress;
+        IEasyToken(EASYAddress).setPoolManager(address(this));
     }
 
     function addPool(
@@ -75,9 +78,17 @@ contract PoolManager is IPoolManager,PriceHelper,Ownable{
     }
 
     function getELFPrice() external view returns (uint price,uint8 decimal){
+        uint256 tvl = this.getTVL();
+        uint256 supply = IERC20(ELFAddress).totalSupply();
+        tvl = MathUtils.convertDecimal(tvl, DEFAULT_ELF_PRICE_DECIMAL, 0);
+        price = tvl/supply;
+        return (price,DEFAULT_ELF_PRICE_DECIMAL);
+    }
+
+    function getTVL() external view returns (uint256 tvl){
         uint256 totalValue = 0;
         PoolAddr storage p;
-        decimal=0;
+        uint8 decimal=0;
         for(uint i = 0; i < pools.length; i++){
             p = pools[i];
             //TODO: test decimal,consider the influence to price.
@@ -91,14 +102,13 @@ contract PoolManager is IPoolManager,PriceHelper,Ownable{
             }
             uint256 amount = Pool(p.poolAddr).liquidity();
             uint256 poolValue = amount*t_price;
+            uint8 tokenDecimal = ERC20(p.tokenAddr).decimals();
+            poolValue = MathUtils.convertDecimal(poolValue, 0, tokenDecimal + t_decimal);
             require(poolValue > 0,'invalid poolValue');
             totalValue += poolValue;
-            require(totalValue > 0,'invalid totalValue');
         }
-
-        uint256 supply = IERC20(ELFAddress).totalSupply();
-        price = totalValue/supply;
-        return (price,decimal);
+        require(totalValue > 0,'invalid totalValue');
+        return totalValue;
     }
 
     function getPool(address token) internal view returns(address){
@@ -132,6 +142,9 @@ contract PoolManager is IPoolManager,PriceHelper,Ownable{
             elfAmount = MathUtils.convertDecimal(elfAmount,elfTokenDecimal,elfPriceDecimal);
         }
         ELFToken(ELFAddress).mint(msg.sender,elfAmount);
+        //Will mint EASY to msg.sender according the liquidity value
+        tokenValue = MathUtils.convertDecimal(tokenValue, 0, elfPriceDecimal);
+        IEasyToken(EASYAddress).onAddLiquidity(msg.sender, tokenValue);
         emit LiquidityAdded(pool,msg.sender,liquidity,elfAmount);
     }
 
@@ -198,6 +211,8 @@ contract PoolManager is IPoolManager,PriceHelper,Ownable{
         IPool(inPool).addLiquidity{value:msg.value}(msg.sender,inAmount);
         IPool(outPool).removeLiquidity(msg.sender, outAmount);
 
+        inValue = MathUtils.convertDecimal(inValue, 0, actualPrice.decimal);
+        IEasyToken(EASYAddress).onSwap(msg.sender,inValue);
         emit Swap(msg.sender, inToken, inAmount, outToken, outAmount);
     }
 

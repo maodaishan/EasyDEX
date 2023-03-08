@@ -29,8 +29,8 @@ contract Pool is Ownable,IPool {
     /// @notice Target of slippages.
     /// 3 stages.every stage has 4 bytes for edge(uint32) and 1 byte for the
     /// target slippage from right to left, is higher to lower,begin from 0.
-    /// e.g.  0xFFFFFFFF  A  0x4C4B40  5  07A120  0
-    ///       very large  10 5000000   5  500000  0
+    /// e.g.  0xFFFFFFFF  0A  004C4B40  05    0007A120  00
+    ///       very large  10   5000000   5      500000   0
     /// means the pool liquidity (by USD):
     /// 0       <= liquidity < 500000 ,   target slippage = 0
     /// 500000  <= liquidity < 5000000,   target slippage = 5%
