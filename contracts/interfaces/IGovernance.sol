@@ -26,7 +26,7 @@ interface IGovernance {
     /// @param proposalIndex ,the proposal to vote for
     function voteProposal(uint32 proposalIndex) external;
 
-    /// @notice anyone can call this to execute a proposal if it meets the conditions.
+    /// @notice only owner can call this to execute a proposal if it meets the conditions.
     /// @param proposalIndex , the proposal be executed
     function executeProposal(uint32 proposalIndex) external;
 }

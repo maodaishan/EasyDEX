@@ -3,5 +3,14 @@ require("@openzeppelin/hardhat-upgrades");
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
-  solidity: "0.8.17",
+  solidity: {
+    version:"0.8.17",
+    settings:{
+      optimizer: {
+        enabled:true,
+        runs:800,
+      },
+      viaIR:true,
+    }
+  }
 };

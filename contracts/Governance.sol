@@ -71,7 +71,7 @@ contract Governance is IGovernance,Ownable{
 
     function executeProposal(
         uint32 proposalIndex
-    ) external{
+    ) external onlyOwner{
         Proposal storage p = proposals[proposalIndex];
         require(!p.executed,'already executed');
         require(p.confirmed && p.voted >= p.gate, 'proposal can not be executed');
