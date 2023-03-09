@@ -1,0 +1,6 @@
+TODO:
+addliquidity
+removeLiquidity
+Settings
+withdraw
+estimateSlippage
