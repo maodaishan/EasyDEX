@@ -6,11 +6,13 @@ import "./interfaces/IEasyToken.sol";
 import "./Pool.sol";
 import "./utils/PriceHelper.sol";
 import "./ELFToken.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+//import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol"; //careful ELF is not upgradeable
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-
-contract PoolManager is IPoolManager,PriceHelper,Ownable{
+contract PoolManager is Initializable,UUPSUpgradeable,OwnableUpgradeable,IPoolManager,PriceHelper{
     uint8 private constant DEFAULT_ELF_PRICE_DECIMAL = 8;
 
     struct PoolAddr {
@@ -33,15 +35,22 @@ contract PoolManager is IPoolManager,PriceHelper,Ownable{
     address EASYAddress;
     PoolAddr[] pools;
 
-    constructor(
+    function initialize(
         address _oracleRegister,
         address _ELFAddress,
         address _EASYAddress
-    ) PriceHelper(_oracleRegister){
-        //remember in js,call grantRole to permit PoolManager mint/burn ELF token.
+    ) public
+    initializer {
+        __Ownable_init();
         ELFAddress = _ELFAddress;
         EASYAddress = _EASYAddress;
         IEasyToken(EASYAddress).setPoolManager(address(this));
+        registerOracle(_oracleRegister);
+    }
+
+    function _authorizeUpgrade(
+        address newImplement
+    ) internal override onlyOwner{
     }
 
     function addPool(

@@ -3,15 +3,16 @@ pragma solidity ^0.8.7;
 
 import "@chainlink/contracts/src/v0.8/interfaces/FeedRegistryInterface.sol";
 import "@chainlink/contracts/src/v0.8/Denominations.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-contract PriceHelper {
+contract PriceHelper is Initializable{
     FeedRegistryInterface internal registry;
 
     /**
      * Be careful,_registry should be different on different networks.
      * ETH mainnet: 0xAa7F6f7f507457a1EE157fE97F6c7DB2BEec5cD0
      */
-    constructor(address _registry) {
+    function registerOracle(address _registry) internal initializer {
         registry = FeedRegistryInterface(_registry);
     }
 
