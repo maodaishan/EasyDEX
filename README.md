@@ -2,8 +2,207 @@
 An DEX considering liquidity grows on different stages. 
 
 ## English introduction
+Liquidity is precious for DeFi, normally we have different liquidity at different stages , so if we use a single protocol (strategy) to calculate the slippage under different liquidity, we’ll get big difference, which may cause loss to the traders. Uniswap protocols can’t work well on DEXs who don’t have enough liquidity. EasyDEX figured out a way to have different protocols under different liquidities to calculate slippage, to help DEXs work well on all situations.
+
+### Considerations
+1. Supplying liquidity for every swap pair like Uniswap, will disperse the precious liquidity. So we consider supplying liquidity per token, not swap pair. 
+2. Because we’re not supplying liquidity via swap pair, so we can’t generate price locally, we need oracle to input the price.
+3. Slippage is necessary, if we don’t have slippage, LP will bear the loss. 
+The deeper liquidity, the lower slippage, and the swap result is expected. The liquidity is accumulated, so we need solution to supply low slippage when we don’t have deep liquidity, to protect the traders. So we consider have a threshold , if liquidity is lower than the threshold, we control the slippage via preset parameters, if liquidity is higher than the threshold, the slippage’s calculated via liquidity. The choice of strategy is auto switched by contract.
+4. When LP supply liquidity, we sum up all liquidity in all pools to calculate how much receipt(an ERC20 token) he/she can get, and when LP remove the liquidity, we use the same way to calculate how much token he/she could withdraw. It’s like what GMX did.
+
+### Detailed design
+
+#### Liquidity
+
+EasyDEX only accepts limited kind of token to build up the pools, and we can add new token by EASY holders voting. 
+We don’t have swap pairs, for a single token, we have only one pool, to gather the liquidity together.
+
+We use “ELF”, an ERC20 token as the receipt of liquidity for LP. When LP add liquidity to a pool, we’ll calculate the value (by USD) of the liquidity, and calculate the ELF token price. By dividing the liquidity value by ELF price, we got how much ELF token we should mint to the LP. When LP remove the liquidity, we calculate the ELF token again, and multiply with the ELF that LP have, we get the value he/she could withdraw, and he/she could withdraw from any pool we have, at the same time, these ELF are burned.
+
+How to calculate price of ELF:  We have many pools, each pool is for one token. Each pool stores how many token it has. We get token price from oracle, and calculate value of the pool. By summing them up, we get the total value for all pools, then we divide it with amount of ELF, we get the price of ELF.
+
+E.g. suppose we have BTC, ETH, USDC pools. The amount and price are :
+![image](https://user-images.githubusercontent.com/41321062/225841720-d1d2dceb-6111-4c0e-b3de-40d16589649e.png)
+
+Currently we already minted 400000 ELF.
+
+Now a LP add 50000 USDC to the pool, how many ELF could he/she get?
+
+The whole value now is : 20000*5 + 3000*100 + 1*400000 = 800000 USD
+
+Current ELF price is : 800000 / 400000 = 2 USD
+
+So the LP could get : 50000 / 2 = 25000 ELF
 
 
+When this LP wishes to remove liquidity, suppose the pools situation are as below:
+
+![image](https://user-images.githubusercontent.com/41321062/225842007-14e487a7-7ab5-46be-8855-99d31c6607d3.png)
+
+Currently ELF amount is :480000.
+
+Current ELF price is : 2.155
+
+So the LP could get :25000*2.155=53875 USD token ,he could get equivalent token from any of the pools. 
+
+
+#### Swap
+
+Assume the trader wish to swap in X token and wish to swap out Y token, the input is ∆x, how many Y could he/she get?
+
+We get price of X from oracle, marked as p1; then calculate the slippage, and calculate the price with slippage, marked as p2; we get the middle of p1 and p2, as the final price , multiply with ∆x, we get ∆y. that it : ∆y = ∆x * (p1 + p2) / 2. Then we calculate the fee with a ratio, the fee is counted by Y. 
+    
+#### Slippage
+
+We have 2 strategies to calculate slippage:
+
+1. According to the preset parameters in the contract.
+2. Considering the liquidity of Y pool, assuming we have an X pool have the same value. Referring to Uniswap V3, we put them together to be a swap pair . the original price can be got from oracle, the price range we supply liquidity is preset, so we can use Uniswap V3 protocol to calculate how many Y should be swapped out. 
+
+Strategy 1 could be used on all situations, but its parameters should be set carefully. They can be adjusted via voting.
+
+Strategy 2 could only be used when we have deep liquidity on Y pool. 
+
+    
+  We should use strategy 1 or 2?  EasyDEX allows us to setup a threshold. When liquidity is lower than the threshold, strategy 1 is used; when liquidity is higher than the threshold, strategy 2 is used. It’s auto decided in the contract. The threshold could be set for each pool separately , and can be adjusted by voting. 
+    
+##### Strategy 1:  Calculate slippage via preset parameters
+Consider below factors have influences on the slippage:
+1. Liquidity of the swapped out pool.
+2. Percentage of the amount of the swapped out token to the pool liquidity.
+3. Ratio of liquidity of the swapped in pool to the swapped out pool.
+
+  The liquidity of the swapped out pool is the most significant influence. So we get a target slippage from it (marked as T), e.g. When the liquidity is 500k USD, the target slippage is 5% of the oracle price. It has default settings, and can be updated by community via voting. 
+  
+  When the liquidity of the pool is low, we expect the ratio be small, because the low liquidity can’t support big swapped out amount. When the swapped value is big, we shouldn’t have big slippage just because we don’t have enough liquidity (which’s our problem), which will cause loss to the trader. It’s not an expected behavior. 
+  
+  When the liquidity of the pool is high, the target slippage could be big. So if we have a big value transaction, it’s expected to have bigger slippage, it’s an expected behavior.
+  The default settings are as below:
+  
+![image](https://user-images.githubusercontent.com/41321062/225842742-22e74492-ccd1-482d-a4da-d194276a8c0c.png)
+
+  
+  Percentage of the amount of the swapped out token to the pool liquidity is the second factor, marked as R. Assume the trader wish to swap in X token and swap out Y token. The swapped in amount is ∆x. The token amount of Y pool is y. From oracle, we could get the price of x to y is p = y/x, so ∆y=∆x*p, we could get ∆y. Then we calculate R = ∆y/y.
+
+  
+  The ratio of liquidity of the swapped in pool to the swapped out pool is the 3rd factor, marked as X. we can easily calculate it. EasyDEX wish to balance the liquidity of the different pools. We don’t wish some pool liquidity is very high while some other pools are very low. So when a trader wish to swap in X and swap out Y, if X liquidity is already high and Y liquidity is low, we wish to depress such trade by increase the slippage, so the trader gets less Y token. The influence shouldn’t be big, when the liquidity of X and Y don’t have big gap, X should be almost 1. To save gas, we can simply get X by a map. Here’s how it looks like:
+![image](https://user-images.githubusercontent.com/41321062/225843398-d7f7e28e-d6ba-4adb-aebe-7c9e4e6588b4.png)
+	
+  Considering the price got from oracle is p, then :
+		                         Slippage=p×T×R×X
+
+Example 1:
+
+Assume trader wishes to swap in 2 ETH and swap out DAI. From oracle we get the price is :    1 ETH = 2000 DAI, that is : 1 DAI = 0.0005 ETH. 
+
+Currently the liquidity of DAI pool is 200000 USD, the liquidity of ETH pool is 50 ETH (that is :100000 USD). 
+Currently we’re consuming DAI pool, so: 
+
+T=2%
+
+∆y=2*2000=4000，R=4000/200000=0.02
+
+X=1
+
+P =1/2000 = 0.0005
+
+Slippage = p* T* R* X = 0.0005* 0.02* 0.02* 1 = 0.0000002
+
+After considering slippage, 
+
+the price of DAI to ETH is : p=[0.0005+(0.0005+0.0000002)]/2 = 0.0005001
+
+the price of ETH to DAI is : 1/0.0005001 = 1999.6
+
+So the trader finally got DAI amount: 3999.2
+
+
+
+Example 2:
+
+Assume trader wish to swap in 100 ETH and swap out DAI. 
+From oracle we get the current price is 1 ETH = 2000 DAI. 
+Currently the liquidity of DAI pool is 10 000 000 USD, the liquidity of ETH pool is 5000 ETH, that is 10 000 000 USD, currently we’re consuming DAI pool.
+
+T = 20%
+
+∆y = 100 * 2000 = 200000 USD， R= 200000/10000000 = 2%
+
+X = 1
+
+Price of DAI to ETH is : p = 1/2000 = 0.0005
+
+So：  Slippage = p* T* R* X = 0.0005* 0.2* 0.02* 1 = 0.000002
+After considering slippage, the price of DAI to ETH is :
+
+P’ = [0.0005 + (0.0005 + 0.000002)]/2 = 0.000501
+	
+The price of ETH to DAI is : 1/0.000501 = 1996
+
+So the trader finally can get 199600 DAI. 
+
+
+Considering above examples, we could know that when the liquidity of EasyDEX is low, we could also get very small slippage. When the trading value gets bigger, the slippage gets bigger too, but still reasonable.
+
+
+##### Strategy 2: Using the liquidity of the pool to get slippage
+
+
+The solution looks like Uniswap V3, the differences are:
+1. Current price is got from oracle
+2. When trader wishes to swap, only the swap out pool is used, so the slippage direction is always determined. So we could assume that before the swap, the price is always at the endpoint of the curve, the swap will make it slide to another endpoint.
+3. The contract will define the price area when the pool supplies liquidity, which could be updated by voting. The default area is 50% of the oracle price.
+
+
+Example 3:
+
+The trader wishes to swap in 100 000 DAI ,to get ETH. The oracle price is 1 ETH = 2000 DAI. 
+
+Currently the ETH pool has 1000 ETH (values  2000 000 DAI), currently the area that contract supplies liquidity is 50% of oracle price, that is :the price of ETH to DAI is: 2000 -3000.
+
+Because the liquidity of ETH pool is 2000 000 DAI, so the contract will have a virtual pool of DAI whose liquidity is 2000 000 DAI, to finish the trade. As shown in the graph, before the trade, the price is at point a. 
+
+![image](https://user-images.githubusercontent.com/41321062/221360616-d6a7acba-46c9-4d2d-add2-50b832ae8684.png)
+
+
+According to the fomula：
+
+![image](https://user-images.githubusercontent.com/41321062/221360652-dc34a2f4-424f-4b66-a4f1-8329172655ef.png)
+
+We can get : L = 248452
+
+After the trade, the price will slide from point a to point c, as in the graph, the orange line stands for the point a, the blue line stands for the point c.
+
+![image](https://user-images.githubusercontent.com/41321062/221360914-ac6cffa7-37a9-4dbd-8352-b43d55310637.png)
+
+At point a: 
+
+(Xv+1000)*Yv=248452^2
+
+Yv/(Xv+1000)=2000
+
+We can get：Xv=4555.56，Yv=11111120
+
+
+At point C：
+
+(Xv+1000-∆x)(Yv+100000)=248452^2
+
+After input Xv, Yv, we can get : ∆x=49.58，
+
+So the trader can get 49.58 ETH, the average trading price is 2017 DAI/ETH, and the slippage is 2*(2017 – 2000) = 34.
+
+#### Fee
+When trader swap on EasyDEX, the contract will charge fee for it. The fee ratio is decided by the community via voting. Default fee ratio is 0.1%.
+The fee will be gave back to the LP , and the EASY token holder. LP could get 70% of it, and EASY holder could get 30%. The ratio could be adjusted via voting. 
+
+#### EASY token
+
+EASY token is issued for governance. The total supply is 1000 000 000. The initial team will get 10 000 000, the others will be mined when LP supplying liquidity, or traders do the swap. The ratio of getting EASY token is decided by the TVL. For example:
+When TVL is smaller than 50 000 000 USD, supplying 1 USD liquidity , could get 1 EASY, or trading 100 USD, can get 1 EASY. When TVL is between 50 000 000 USD and 500 000 000 USD, the EASY got is half of previous. The could encourage LP or trader to use EasyDEX at the startup time.
+
+EASY holder could vote to decide various settings on EasyDEX, e.g. how to distribute the fee; the threshold of changing strategy of a pool; or the slippage related parameters. 
 
 
 ## 中文介绍：
@@ -155,4 +354,4 @@ Yv/(Xv+1000)=2000
 
 EASY持有者可通过投票决定EasyDEX的各种参数，如对交易费的分配比例；某个资金池的滑点计算转换阈值；某个资金池的滑点相关设置等。
 
-### 合约
+
