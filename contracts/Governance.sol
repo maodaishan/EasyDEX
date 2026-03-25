@@ -22,7 +22,7 @@ contract Governance is IGovernance,Ownable{
         bytes param;
     }
 
-    constructor(address easy){
+    constructor(address easy) Ownable(msg.sender) {
         easyToken = easy;
     }
 

@@ -14,7 +14,7 @@ library ERC20Helper {
         address contractAddr,
         address queryAddr
     ) internal view returns(bool,uint256){
-        if(!Address.isContract(contractAddr)){
+        if(contractAddr.code.length == 0){
             return (false,0);
         }
 
