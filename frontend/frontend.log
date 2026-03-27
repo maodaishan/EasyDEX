@@ -1,0 +1,2 @@
+❌ Port 3001 is already in use
+Try a different port: python server.py --port 3001

@@ -6,54 +6,60 @@ async function main() {
     
     const [deployer] = await ethers.getSigners();
     
-    console.log("💼 Deploying contracts with account:", deployerawait .address.getAddress());
-    console.log("💰 Account balance:", (await ethers.provider.getBalance(deployerawait .address.getAddress())).toString());
+    console.log("💼 Deploying contracts with account:", deployer.address);
+    console.log("💰 Account balance:", (await ethers.provider.getBalance(deployer.address)).toString());
     
     // Deploy SimplePriceHelper (Oracle)
     console.log("\n📊 Deploying SimplePriceHelper...");
     const SimplePriceHelper = await ethers.getContractFactory("SimplePriceHelper");
     const priceHelper = await SimplePriceHelper.deploy();
     await priceHelper.waitForDeployment();
-    console.log("✅ SimplePriceHelper deployed to:", await priceHelper.getAddress());
+    const priceHelperAddr = await priceHelper.getAddress();
+    console.log("✅ SimplePriceHelper deployed to:", priceHelperAddr);
     
     // Deploy ELF Token (Liquidity Receipt Token)
     console.log("\n🧝 Deploying ELF Token...");
     const ELFToken = await ethers.getContractFactory("ELFToken");
     const elfToken = await ELFToken.deploy();
     await elfToken.waitForDeployment();
-    console.log("✅ ELF Token deployed to:", elfTokenawait .address.getAddress());
+    const elfTokenAddr = await elfToken.getAddress();
+    console.log("✅ ELF Token deployed to:", elfTokenAddr);
     
     // Deploy EASY Token (Governance Token)
     console.log("\n💎 Deploying EASY Token...");
     const EasyToken = await ethers.getContractFactory("EasyToken");
-    const easyToken = await EasyToken.deploy();
+    const easyToken = await EasyToken.deploy(0); // Pass default settings
     await easyToken.waitForDeployment();
-    console.log("✅ EASY Token deployed to:", easyTokenawait .address.getAddress());
+    const easyTokenAddr = await easyToken.getAddress();
+    console.log("✅ EASY Token deployed to:", easyTokenAddr);
     
     // Deploy PoolManager
     console.log("\n🎛️ Deploying PoolManager...");
     const PoolManager = await ethers.getContractFactory("PoolManager");
-    const poolManager = await PoolManager.deploy(elfTokenawait .address.getAddress(), easyTokenawait .address.getAddress());
+    const poolManager = await PoolManager.deploy(priceHelperAddr, elfTokenAddr, easyTokenAddr);
     await poolManager.waitForDeployment();
-    console.log("✅ PoolManager deployed to:", poolManagerawait .address.getAddress());
+    const poolManagerAddr = await poolManager.getAddress();
+    console.log("✅ PoolManager deployed to:", poolManagerAddr);
     
-    // Transfer token ownership to PoolManager
-    console.log("\n🔄 Transferring token ownership to PoolManager...");
-    await elfToken.transferOwnership(poolManagerawait .address.getAddress());
-    await easyToken.transferOwnership(poolManagerawait .address.getAddress());
-    console.log("✅ Token ownership transferred");
+    // Set PoolManager in EasyToken and transfer ownership
+    console.log("\n🔄 Setting up token permissions...");
+    await easyToken.setPoolManager(poolManagerAddr);
+    await elfToken.transferOwnership(poolManagerAddr);
+    await easyToken.transferOwnership(poolManagerAddr);
+    console.log("✅ Token permissions configured");
     
     // Deploy Main Pool
     console.log("\n🏊 Deploying Main Pool...");
     const Pool = await ethers.getContractFactory("Pool");
-    const pool = await Pool.deploy(poolManagerawait .address.getAddress(), priceHelperawait .address.getAddress());
+    const pool = await Pool.deploy(poolManagerAddr, priceHelperAddr);
     await pool.waitForDeployment();
-    console.log("✅ Main Pool deployed to:", poolawait .address.getAddress());
+    const poolAddr = await pool.getAddress();
+    console.log("✅ Main Pool deployed to:", poolAddr);
     
-    // Register pool in manager
-    console.log("\n📝 Registering pool in manager...");
-    await poolManager.addPool(poolawait .address.getAddress());
-    console.log("✅ Pool registered");
+    // Register pools for tokens in manager
+    console.log("\n📝 Registering pools in manager...");
+    // Note: addPool creates pools internally, so we skip this step for now
+    console.log("✅ Pool registration skipped (pools will be created when needed)");
     
     // Deploy test tokens for demo
     console.log("\n🪙 Deploying test tokens...");
@@ -61,40 +67,39 @@ async function main() {
     
     const tokenA = await MockERC20.deploy("Test Token A", "TKA", 18);
     await tokenA.waitForDeployment();
-    console.log("✅ Test Token A deployed to:", tokenAawait .address.getAddress());
+    const tokenAAddr = await tokenA.getAddress();
+    console.log("✅ Test Token A deployed to:", tokenAAddr);
     
     const tokenB = await MockERC20.deploy("Test Token B", "TKB", 18);
     await tokenB.waitForDeployment();
-    console.log("✅ Test Token B deployed to:", tokenBawait .address.getAddress());
+    const tokenBAddr = await tokenB.getAddress();
+    console.log("✅ Test Token B deployed to:", tokenBAddr);
     
     const usdc = await MockERC20.deploy("USD Coin", "USDC", 6);
     await usdc.waitForDeployment();
-    console.log("✅ Mock USDC deployed to:", usdcawait .address.getAddress());
-    
-    const wbtc = await MockERC20.deploy("Wrapped Bitcoin", "WBTC", 8);
-    await wbtc.waitForDeployment();
-    console.log("✅ Mock WBTC deployed to:", wbtcawait .address.getAddress());
+    const usdcAddr = await usdc.getAddress();
+    console.log("✅ Mock USDC deployed to:", usdcAddr);
     
     // Mint initial tokens to deployer for testing
     console.log("\n🎯 Minting test tokens...");
-    await tokenA.mint(deployerawait .address.getAddress(), ethers.parseEther("1000000"));
-    await tokenB.mint(deployerawait .address.getAddress(), ethers.parseEther("1000000"));
-    await usdc.mint(deployerawait .address.getAddress(), ethers.parseUnits("1000000", 6));
-    await wbtc.mint(deployerawait .address.getAddress(), ethers.parseUnits("100", 8));
+    await tokenA.mint(deployer.address, ethers.parseEther("1000000"));
+    await tokenB.mint(deployer.address, ethers.parseEther("1000000"));
+    await usdc.mint(deployer.address, ethers.parseUnits("1000000", 6));
     console.log("✅ Test tokens minted");
     
     // Add initial liquidity
     console.log("\n💧 Adding initial liquidity...");
     
     // Approve tokens
-    await tokenA.approve(poolawait .address.getAddress(), ethers.parseEther("100000"));
-    await tokenB.approve(poolawait .address.getAddress(), ethers.parseEther("200000"));
-    await usdc.approve(poolawait .address.getAddress(), ethers.parseUnits("100000", 6));
+    await tokenA.approve(poolAddr, ethers.parseEther("100000"));
+    await tokenB.approve(poolAddr, ethers.parseEther("200000"));
+    await usdc.approve(poolAddr, ethers.parseUnits("100000", 6));
     
     // Add TKA/TKB liquidity
+    console.log("Adding TKA/TKB liquidity...");
     await pool.addLiquidity(
-        tokenAawait .address.getAddress(),
-        tokenBawait .address.getAddress(),
+        tokenAAddr,
+        tokenBAddr,
         ethers.parseEther("50000"),      // 50,000 TKA
         ethers.parseEther("100000"),     // 100,000 TKB (1:2 ratio)
         ethers.parseEther("49000"),      // Min TKA
@@ -102,13 +107,14 @@ async function main() {
     );
     
     // Add TKA/USDC liquidity
+    console.log("Adding TKA/USDC liquidity...");
     await pool.addLiquidity(
-        tokenAawait .address.getAddress(),
-        usdcawait .address.getAddress(),
+        tokenAAddr,
+        usdcAddr,
         ethers.parseEther("25000"),      // 25,000 TKA
-        ethers.parseUnits("50000", 6),  // 50,000 USDC (1:2 ratio in USD)
+        ethers.parseUnits("50000", 6),   // 50,000 USDC (1:2 ratio in USD)
         ethers.parseEther("24500"),      // Min TKA
-        ethers.parseUnits("49000", 6)   // Min USDC
+        ethers.parseUnits("49000", 6)    // Min USDC
     );
     
     console.log("✅ Initial liquidity added");
@@ -116,15 +122,16 @@ async function main() {
     // Deploy Governance contract
     console.log("\n🏛️ Deploying Governance...");
     const Governance = await ethers.getContractFactory("Governance");
-    const governance = await Governance.deploy(easyTokenawait .address.getAddress());
+    const governance = await Governance.deploy(easyTokenAddr);
     await governance.waitForDeployment();
-    console.log("✅ Governance deployed to:", governanceawait .address.getAddress());
+    const governanceAddr = await governance.getAddress();
+    console.log("✅ Governance deployed to:", governanceAddr);
     
     // Verify deployment
     console.log("\n🔍 Verifying deployment...");
     const poolCount = await poolManager.getPoolCount();
-    const isValidPool = await poolManager.isValidPool(poolawait .address.getAddress());
-    const elfBalance = await elfToken.balanceOf(deployerawait .address.getAddress());
+    const isValidPool = await poolManager.isValidPool(poolAddr);
+    const elfBalance = await elfToken.balanceOf(deployer.address);
     
     console.log("📊 Pool count:", poolCount.toString());
     console.log("✅ Is valid pool:", isValidPool);
@@ -133,20 +140,19 @@ async function main() {
     // Save deployment addresses
     const deploymentInfo = {
         network: hre.network.name,
-        deployer: deployerawait .address.getAddress(),
+        deployer: deployer.address,
         timestamp: new Date().toISOString(),
         contracts: {
-            PriceHelper: priceHelperawait .address.getAddress(),
-            ELFToken: elfTokenawait .address.getAddress(),
-            EasyToken: easyTokenawait .address.getAddress(),
-            PoolManager: poolManagerawait .address.getAddress(),
-            MainPool: poolawait .address.getAddress(),
-            Governance: governanceawait .address.getAddress(),
+            PriceHelper: priceHelperAddr,
+            ELFToken: elfTokenAddr,
+            EasyToken: easyTokenAddr,
+            PoolManager: poolManagerAddr,
+            MainPool: poolAddr,
+            Governance: governanceAddr,
             TestTokens: {
-                TokenA: tokenAawait .address.getAddress(),
-                TokenB: tokenBawait .address.getAddress(),
-                USDC: usdcawait .address.getAddress(),
-                WBTC: wbtcawait .address.getAddress()
+                TokenA: tokenAAddr,
+                TokenB: tokenBAddr,
+                USDC: usdcAddr
             }
         },
         initialLiquidity: {
@@ -170,11 +176,13 @@ async function main() {
     console.log("└─ 🪙 Test Tokens:");
     console.log("   ├─ TKA:", deploymentInfo.contracts.TestTokens.TokenA);
     console.log("   ├─ TKB:", deploymentInfo.contracts.TestTokens.TokenB);
-    console.log("   ├─ USDC:", deploymentInfo.contracts.TestTokens.USDC);
-    console.log("   └─ WBTC:", deploymentInfo.contracts.TestTokens.WBTC);
+    console.log("   └─ USDC:", deploymentInfo.contracts.TestTokens.USDC);
     
     // Save to file
     const fs = require('fs');
+    if (!fs.existsSync('deployments')) {
+        fs.mkdirSync('deployments');
+    }
     fs.writeFileSync(
         `deployments/${hre.network.name}.json`,
         JSON.stringify(deploymentInfo, null, 2)
@@ -183,10 +191,9 @@ async function main() {
     
     console.log("\n✨ EasyDEX deployment completed successfully! ✨");
     console.log("\n🎯 Next steps:");
-    console.log("1. Run tests: npm run test");
-    console.log("2. Try swaps with the deployed test tokens");
-    console.log("3. Add more liquidity pairs");
-    console.log("4. Deploy to testnet/mainnet");
+    console.log("1. Create frontend interface");
+    console.log("2. Test swaps and liquidity operations");
+    console.log("3. Record demo video for Friday meeting");
     
     return deploymentInfo;
 }

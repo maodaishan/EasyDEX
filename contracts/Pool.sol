@@ -5,10 +5,13 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./interfaces/IPool.sol";
 import "./utils/ERC20Helper.sol";
-import "./utils/Common.sol";
+// import "./utils/Common.sol"; // Inlined for simplicity
 import "./utils/MathUtils.sol";
 
 contract Pool is Ownable, IPool {
+    /// @notice ETH address constant (from Common library)
+    address internal constant ETH_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    
     /// @notice below are constant setting masks. they were all saved in a single slot.
     //0-3 , 4 bytes for the gate of slippage mode
     //4,    1 byte for the price range ratio of supplying the liquidity in pool mode.
@@ -104,7 +107,7 @@ contract Pool is Ownable, IPool {
         address user,
         uint256 amount
     ) external payable onlyManager returns(uint256){
-        bool isETH = Common.isETH(tokenAddress);
+        bool isETH = (tokenAddress == ETH_ADDRESS);
         uint256 oldLiquidity = liquidity;
         
         if(isETH){
@@ -146,7 +149,7 @@ contract Pool is Ownable, IPool {
         require(amount > 0, 'Nothing to withdraw');
         pendingWithdraw[msg.sender] = 0;
         
-        bool isETH = Common.isETH(tokenAddress);
+        bool isETH = (tokenAddress == ETH_ADDRESS);
         if(isETH){
             ERC20Helper.safeTransferETH(msg.sender, amount);
         } else {

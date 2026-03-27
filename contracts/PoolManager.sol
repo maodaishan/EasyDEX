@@ -9,7 +9,7 @@ import "./ELFToken.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract PoolManager is Ownable, IPoolManager, SimplePriceHelper {
+contract PoolManager is Ownable, IPoolManager {
     uint8 private constant DEFAULT_ELF_PRICE_DECIMAL = 8;
 
     struct PoolAddr {
@@ -31,28 +31,24 @@ contract PoolManager is Ownable, IPoolManager, SimplePriceHelper {
     address public ELFAddress;
     address public EASYAddress;
     PoolAddr[] public pools;
+    SimplePriceHelper public priceHelper;
 
     // Events
     event PoolAdded(address indexed tokenAddr, address indexed poolAddr, uint256 settings);
     event PoolSettingsUpdated(address indexed poolAddr, uint256 newSettings);
 
     constructor(
-        address _oracleRegister,
+        address _priceHelper,
         address _ELFAddress,
         address _EASYAddress
     ) Ownable(msg.sender) {
+        priceHelper = SimplePriceHelper(_priceHelper);
         ELFAddress = _ELFAddress;
         EASYAddress = _EASYAddress;
         
         // Set default fee: 0.1% (10 basis points)
         fee.fee = 10;
         fee.decimal = 4;
-        
-        // Initialize oracle
-        registerOracle(_oracleRegister);
-        
-        // Set this contract as the pool manager in EASY token
-        IEasyToken(EASYAddress).setPoolManager(address(this));
     }
 
     /// @inheritdoc IPoolManager
@@ -124,7 +120,7 @@ contract PoolManager is Ownable, IPoolManager, SimplePriceHelper {
         for(uint i = 0; i < pools.length; i++){
             PoolAddr memory p = pools[i];
             
-            try this.getPrice(p.tokenAddr) returns (uint256 tokenPrice, uint8 tokenDecimal) {
+            try priceHelper.getPrice(p.tokenAddr) returns (uint256 tokenPrice, uint8 tokenDecimal) {
                 uint256 poolLiquidity = Pool(p.poolAddr).liquidity();
                 if(poolLiquidity > 0) {
                     uint256 poolValue = poolLiquidity * tokenPrice;
@@ -172,7 +168,7 @@ contract PoolManager is Ownable, IPoolManager, SimplePriceHelper {
         IPool(pool).addLiquidity{value: msg.value}(msg.sender, liquidity);
         
         // Calculate token value in USD
-        (uint tokenPrice, uint8 tokenDecimal) = getPrice(tokenAddr);
+        (uint tokenPrice, uint8 tokenDecimal) = priceHelper.getPrice(tokenAddr);
         uint256 tokenValue = liquidity * tokenPrice;
         
         // Get token decimals for proper calculation
@@ -214,7 +210,7 @@ contract PoolManager is Ownable, IPoolManager, SimplePriceHelper {
         (uint elfPrice, uint8 elfPriceDecimal) = this.getELFPrice();
         uint256 tokenValue = elfAmount * elfPrice;
         
-        (uint tokenPrice, uint8 tokenDecimal) = getPrice(receiveToken);
+        (uint tokenPrice, uint8 tokenDecimal) = priceHelper.getPrice(receiveToken);
         
         // Convert value to token price decimal
         if(elfPriceDecimal != tokenDecimal){
@@ -253,8 +249,8 @@ contract PoolManager is Ownable, IPoolManager, SimplePriceHelper {
         address outPool = getPool(outToken);
         
         // Get prices
-        (uint inTokenPrice, uint8 inTokenDecimal) = getPrice(inToken);
-        (uint outTokenPrice, uint8 outTokenDecimal) = getPrice(outToken);
+        (uint inTokenPrice, uint8 inTokenDecimal) = priceHelper.getPrice(inToken);
+        (uint outTokenPrice, uint8 outTokenDecimal) = priceHelper.getPrice(outToken);
         
         // Prepare slippage calculation parameters
         IPool.EstimateSlippageInput memory params;

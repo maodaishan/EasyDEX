@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EasyDEX - Adaptive Slippage DEX</title>
+    <link rel="stylesheet" href="src/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <h1><i class="fas fa-exchange-alt"></i> EasyDEX</h1>
+                    <span class="tagline">Adaptive Slippage Protocol</span>
+                </div>
+                <div class="wallet-section">
+                    <div id="networkInfo" class="network-info">
+                        <span class="network-dot"></span>
+                        <span>Local Network</span>
+                    </div>
+                    <button id="connectWallet" class="btn-primary">Connect Wallet</button>
+                    <div id="walletInfo" class="wallet-info" style="display: none;">
+                        <span id="walletAddress"></span>
+                        <span id="ethBalance"></span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main">
+            <!-- Hero Section -->
+            <section class="hero">
+                <div class="hero-content">
+                    <h2>Revolutionary Adaptive Slippage DEX</h2>
+                    <p>EasyDEX automatically adjusts slippage calculations based on liquidity depth - delivering optimal trading efficiency across all market conditions.</p>
+                    <div class="hero-stats">
+                        <div class="stat">
+                            <span class="stat-value" id="totalTVL">$0</span>
+                            <span class="stat-label">Total Value Locked</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-value" id="totalPools">0</span>
+                            <span class="stat-label">Active Pools</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-value" id="currentMode">Pool Mode</span>
+                            <span class="stat-label">Current Algorithm</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab Navigation -->
+            <div class="tab-navigation">
+                <button class="tab-btn active" data-tab="swap">
+                    <i class="fas fa-exchange-alt"></i> Swap
+                </button>
+                <button class="tab-btn" data-tab="liquidity">
+                    <i class="fas fa-plus"></i> Liquidity
+                </button>
+                <button class="tab-btn" data-tab="governance">
+                    <i class="fas fa-vote-yea"></i> Governance
+                </button>
+                <button class="tab-btn" data-tab="analytics">
+                    <i class="fas fa-chart-line"></i> Analytics
+                </button>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="tab-content">
+                <!-- Swap Tab -->
+                <div id="swap" class="tab-pane active">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-exchange-alt"></i> Token Swap</h3>
+                            <div class="slippage-mode">
+                                <span id="slippageMode" class="mode-badge">Pool Mode</span>
+                                <i class="fas fa-info-circle" title="Auto-switches between Pool Mode and Settings Mode based on liquidity"></i>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="swap-container">
+                                <!-- From Token -->
+                                <div class="token-input">
+                                    <div class="token-input-header">
+                                        <label>From</label>
+                                        <span class="balance">Balance: <span id="fromBalance">0</span></span>
+                                    </div>
+                                    <div class="token-input-body">
+                                        <input type="number" id="fromAmount" placeholder="0.0" step="any">
+                                        <div class="token-select" id="fromToken">
+                                            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='%23007bff'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Ctext x='12' y='16' text-anchor='middle' fill='white' font-size='8'%3ETKA%3C/text%3E%3C/svg%3E" alt="TKA">
+                                            <span>TKA</span>
+                                            <i class="fas fa-chevron-down"></i>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Swap Button -->
+                                <div class="swap-arrow">
+                                    <button id="reverseSwap" class="btn-icon">
+                                        <i class="fas fa-arrow-down"></i>
+                                    </button>
+                                </div>
+
+                                <!-- To Token -->
+                                <div class="token-input">
+                                    <div class="token-input-header">
+                                        <label>To (estimated)</label>
+                                        <span class="balance">Balance: <span id="toBalance">0</span></span>
+                                    </div>
+                                    <div class="token-input-body">
+                                        <input type="number" id="toAmount" placeholder="0.0" readonly>
+                                        <div class="token-select" id="toToken">
+                                            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='%2328a745'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Ctext x='12' y='16' text-anchor='middle' fill='white' font-size='8'%3ETKB%3C/text%3E%3C/svg%3E" alt="TKB">
+                                            <span>TKB</span>
+                                            <i class="fas fa-chevron-down"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Swap Details -->
+                            <div class="swap-details">
+                                <div class="detail-row">
+                                    <span>Price Impact</span>
+                                    <span id="priceImpact">-</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span>Slippage Tolerance</span>
+                                    <span id="slippageTolerance">0.5%</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span>Minimum Received</span>
+                                    <span id="minimumReceived">-</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span>Algorithm Mode</span>
+                                    <span id="algorithmMode" class="mode-indicator">Pool Mode</span>
+                                </div>
+                            </div>
+
+                            <button id="swapButton" class="btn-primary btn-large" disabled>
+                                Select a token
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Liquidity Tab -->
+                <div id="liquidity" class="tab-pane">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-plus"></i> Add Liquidity</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="liquidity-info">
+                                <p>Provide liquidity to earn fees and EASY governance tokens</p>
+                                <div class="reward-info">
+                                    <span>Current APR: <strong id="currentAPR">12.5%</strong></span>
+                                    <span>EASY Rewards: <strong id="easyRewards">2.1% APR</strong></span>
+                                </div>
+                            </div>
+
+                            <!-- Token A Input -->
+                            <div class="token-input">
+                                <div class="token-input-header">
+                                    <label>Token A Amount</label>
+                                    <span class="balance">Balance: <span id="tokenABalance">0</span></span>
+                                </div>
+                                <div class="token-input-body">
+                                    <input type="number" id="tokenAAmount" placeholder="0.0" step="any">
+                                    <div class="token-select">
+                                        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='%23007bff'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Ctext x='12' y='16' text-anchor='middle' fill='white' font-size='8'%3ETKA%3C/text%3E%3C/svg%3E" alt="TKA">
+                                        <span>TKA</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Token B Input -->
+                            <div class="token-input">
+                                <div class="token-input-header">
+                                    <label>Token B Amount</label>
+                                    <span class="balance">Balance: <span id="tokenBBalance">0</span></span>
+                                </div>
+                                <div class="token-input-body">
+                                    <input type="number" id="tokenBAmount" placeholder="0.0" step="any">
+                                    <div class="token-select">
+                                        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='%2328a745'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Ctext x='12' y='16' text-anchor='middle' fill='white' font-size='8'%3ETKB%3C/text%3E%3C/svg%3E" alt="TKB">
+                                        <span>TKB</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Liquidity Details -->
+                            <div class="liquidity-details">
+                                <div class="detail-row">
+                                    <span>Share of Pool</span>
+                                    <span id="poolShare">0%</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span>ELF Tokens to Receive</span>
+                                    <span id="elfTokens">0</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span>EASY Reward Rate</span>
+                                    <span id="rewardRate">2.1% APR</span>
+                                </div>
+                            </div>
+
+                            <button id="addLiquidityButton" class="btn-primary btn-large" disabled>
+                                Connect Wallet
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Your Liquidity -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-coins"></i> Your Liquidity Positions</h3>
+                        </div>
+                        <div class="card-body">
+                            <div id="liquidityPositions" class="liquidity-positions">
+                                <p class="empty-state">No liquidity positions found. Add liquidity to get started!</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Governance Tab -->
+                <div id="governance" class="tab-pane">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-vote-yea"></i> Governance</h3>
+                            <div class="governance-stats">
+                                <span>Your EASY: <strong id="userEasyBalance">0</strong></span>
+                                <span>Voting Power: <strong id="votingPower">0%</strong></span>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="governance-info">
+                                <p>EASY token holders can vote on protocol parameters and upgrades</p>
+                            </div>
+
+                            <!-- Active Proposals -->
+                            <div class="proposals-section">
+                                <h4>Active Proposals</h4>
+                                <div id="activeProposals" class="proposals-list">
+                                    <div class="proposal-card">
+                                        <div class="proposal-header">
+                                            <h5>Proposal #1: Adjust Fee Structure</h5>
+                                            <span class="status active">Active</span>
+                                        </div>
+                                        <p>Reduce trading fees from 0.3% to 0.25% to increase competitiveness</p>
+                                        <div class="proposal-stats">
+                                            <div class="vote-progress">
+                                                <div class="progress-bar">
+                                                    <div class="progress-fill" style="width: 65%"></div>
+                                                </div>
+                                                <span>65% For, 35% Against</span>
+                                            </div>
+                                            <div class="proposal-actions">
+                                                <button class="btn-outline btn-vote-for">Vote For</button>
+                                                <button class="btn-outline btn-vote-against">Vote Against</button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="proposal-card">
+                                        <div class="proposal-header">
+                                            <h5>Proposal #2: Slippage Algorithm Update</h5>
+                                            <span class="status active">Active</span>
+                                        </div>
+                                        <p>Optimize the pool-mode slippage calculation for better price discovery</p>
+                                        <div class="proposal-stats">
+                                            <div class="vote-progress">
+                                                <div class="progress-bar">
+                                                    <div class="progress-fill" style="width: 78%"></div>
+                                                </div>
+                                                <span>78% For, 22% Against</span>
+                                            </div>
+                                            <div class="proposal-actions">
+                                                <button class="btn-outline btn-vote-for">Vote For</button>
+                                                <button class="btn-outline btn-vote-against">Vote Against</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Create Proposal -->
+                            <div class="create-proposal-section">
+                                <h4>Create New Proposal</h4>
+                                <div class="proposal-form">
+                                    <input type="text" id="proposalTitle" placeholder="Proposal Title" class="form-input">
+                                    <textarea id="proposalDescription" placeholder="Describe your proposal..." class="form-textarea"></textarea>
+                                    <button id="createProposalButton" class="btn-primary">Create Proposal</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analytics Tab -->
+                <div id="analytics" class="tab-pane">
+                    <div class="analytics-grid">
+                        <!-- Protocol Stats -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h3><i class="fas fa-chart-line"></i> Protocol Statistics</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="stats-grid">
+                                    <div class="stat-card">
+                                        <span class="stat-value" id="totalVolume24h">$0</span>
+                                        <span class="stat-label">24h Volume</span>
+                                        <span class="stat-change positive">+5.2%</span>
+                                    </div>
+                                    <div class="stat-card">
+                                        <span class="stat-value" id="totalFees24h">$0</span>
+                                        <span class="stat-label">24h Fees</span>
+                                        <span class="stat-change positive">+3.8%</span>
+                                    </div>
+                                    <div class="stat-card">
+                                        <span class="stat-value" id="avgSlippage">0.15%</span>
+                                        <span class="stat-label">Avg Slippage</span>
+                                        <span class="stat-change negative">-0.02%</span>
+                                    </div>
+                                    <div class="stat-card">
+                                        <span class="stat-value" id="totalTransactions">1,234</span>
+                                        <span class="stat-label">Total Transactions</span>
+                                        <span class="stat-change positive">+12.5%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Algorithm Performance -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h3><i class="fas fa-cogs"></i> Algorithm Performance</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="algorithm-stats">
+                                    <div class="mode-stats">
+                                        <h5>Pool Mode</h5>
+                                        <div class="mode-metrics">
+                                            <span>Usage: 73%</span>
+                                            <span>Avg Slippage: 0.12%</span>
+                                            <span>Efficiency: 94.2%</span>
+                                        </div>
+                                    </div>
+                                    <div class="mode-stats">
+                                        <h5>Settings Mode</h5>
+                                        <div class="mode-metrics">
+                                            <span>Usage: 27%</span>
+                                            <span>Avg Slippage: 0.21%</span>
+                                            <span>Efficiency: 88.7%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mode-switch-info">
+                                    <p><strong>Algorithm switches to Settings Mode when liquidity < $50,000</strong></p>
+                                    <p>This adaptive approach reduces slippage across all market conditions.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Token Prices -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h3><i class="fas fa-dollar-sign"></i> Token Prices</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="price-list">
+                                    <div class="price-item">
+                                        <div class="token-info">
+                                            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='%23007bff'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Ctext x='12' y='16' text-anchor='middle' fill='white' font-size='8'%3ETKA%3C/text%3E%3C/svg%3E" alt="TKA">
+                                            <span>TKA</span>
+                                        </div>
+                                        <div class="price-data">
+                                            <span class="price">$1.00</span>
+                                            <span class="change neutral">0.00%</span>
+                                        </div>
+                                    </div>
+                                    <div class="price-item">
+                                        <div class="token-info">
+                                            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='%2328a745'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Ctext x='12' y='16' text-anchor='middle' fill='white' font-size='8'%3ETKB%3C/text%3E%3C/svg%3E" alt="TKB">
+                                            <span>TKB</span>
+                                        </div>
+                                        <div class="price-data">
+                                            <span class="price">$2.00</span>
+                                            <span class="change neutral">0.00%</span>
+                                        </div>
+                                    </div>
+                                    <div class="price-item">
+                                        <div class="token-info">
+                                            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='%23ffc107'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Ctext x='12' y='16' text-anchor='middle' fill='white' font-size='6'%3EUSDC%3C/text%3E%3C/svg%3E" alt="USDC">
+                                            <span>USDC</span>
+                                        </div>
+                                        <div class="price-data">
+                                            <span class="price">$1.00</span>
+                                            <span class="change neutral">0.00%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-content">
+                <p>&copy; 2026 EasyDEX. Revolutionary adaptive slippage protocol.</p>
+                <div class="social-links">
+                    <a href="#"><i class="fab fa-twitter"></i></a>
+                    <a href="#"><i class="fab fa-discord"></i></a>
+                    <a href="#"><i class="fab fa-github"></i></a>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Processing transaction...</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js"></script>
+    <script src="src/contracts.js"></script>
+    <script src="src/app.js"></script>
+</body>
+</html>
