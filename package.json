@@ -6,10 +6,12 @@
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
-    "deploy:local": "hardhat run scripts/deploy.js --network localhost",
-    "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia",
+    "deploy:local": "hardhat run scripts/deploy-simple.js --network localhost",
+    "deploy:hardhat": "hardhat run scripts/deploy-simple.js --network hardhat",
+    "deploy:sepolia": "hardhat run scripts/deploy-simple.js --network sepolia",
     "node": "hardhat node",
-    "clean": "hardhat clean"
+    "clean": "hardhat clean",
+    "frontend": "python frontend/server.py"
   },
   "keywords": [
     "defi",

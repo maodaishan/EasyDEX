@@ -1,5 +1,4 @@
 require("@nomicfoundation/hardhat-toolbox");
-require("@openzeppelin/hardhat-upgrades");
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
@@ -8,9 +7,24 @@ module.exports = {
     settings: {
       optimizer: {
         enabled: true,
-        runs: 800,
+        runs: 200,
       },
-      viaIR: true,  // Enable viaIR to handle stack too deep
+      viaIR: true,
     }
-  }
+  },
+  networks: {
+    hardhat: {
+      chainId: 31337,
+    },
+    localhost: {
+      url: "http://127.0.0.1:8545",
+      chainId: 31337,
+    },
+    // Uncomment and fill in to deploy to Sepolia testnet:
+    // sepolia: {
+    //   url: "https://sepolia.infura.io/v3/YOUR_INFURA_KEY",
+    //   accounts: ["0xYOUR_PRIVATE_KEY"],
+    //   chainId: 11155111,
+    // },
+  },
 };

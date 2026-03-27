@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
+import "@openzeppelin/contracts/access/Ownable.sol";
+
 /**
  * @title SimplePriceHelper
  * @dev Simplified price helper for testing without Chainlink dependency
  * In production, this should be replaced with actual Chainlink oracle integration
  */
-contract SimplePriceHelper {
+contract SimplePriceHelper is Ownable {
+    constructor() Ownable(msg.sender) {}
     
     // Mock prices for testing (price * 10^8 for 8 decimal places)
     mapping(address => uint256) public mockPrices;
@@ -57,7 +60,7 @@ contract SimplePriceHelper {
      * @param price Price in USD (with specified decimals)
      * @param decimal Number of decimal places
      */
-    function setMockPrice(address token, uint256 price, uint8 decimal) external {
+    function setMockPrice(address token, uint256 price, uint8 decimal) external onlyOwner {
         require(price > 0, "Price must be positive");
         require(decimal <= 18, "Too many decimals");
         

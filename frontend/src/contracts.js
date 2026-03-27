@@ -56,12 +56,20 @@ const CONTRACT_ABIS = {
         "function approve(address, uint256) returns (bool)",
         "function allowance(address, address) view returns (uint256)",
         "function owner() view returns (address)",
-        "function pause()",
-        "function unpause()",
-        "function paused() view returns (bool)",
+        "function poolManager() view returns (address)",
+        "function setPoolManager(address)",
+        "function mint(address, uint256)",
+        "function burn(uint256)",
+        "function burnFrom(address, uint256)",
+        "function getCurrentPrice() view returns (uint256, uint8)",
+        "function getTotalValueLocked() view returns (uint256)",
+        "function calculateValue(uint256) view returns (uint256, uint8)",
         // Events
         "event Transfer(address indexed from, address indexed to, uint256 value)",
-        "event Approval(address indexed owner, address indexed spender, uint256 value)"
+        "event Approval(address indexed owner, address indexed spender, uint256 value)",
+        "event PoolManagerSet(address indexed oldManager, address indexed newManager)",
+        "event TokensMinted(address indexed to, uint256 amount)",
+        "event TokensBurned(address indexed from, uint256 amount)"
     ],
     
     EasyToken: [
@@ -97,23 +105,27 @@ const CONTRACT_ABIS = {
     PoolManager: [
         "function ELFAddress() view returns (address)",
         "function EASYAddress() view returns (address)",
-        "function fee() view returns (tuple(uint8 decimal, uint24 fee))",
-        "function pools(uint256) view returns (tuple(address poolAddr, address tokenAddr))",
+        "function fee() view returns (uint8 decimal, uint24 feeRate)",
+        "function pools(uint256) view returns (address poolAddr, address tokenAddr)",
         "function getPoolCount() view returns (uint256)",
-        "function getPoolByIndex(uint256) view returns (address)",
-        "function getAllPools() view returns (address[])",
-        "function isValidPool(address) view returns (bool)",
-        "function addPool(address, uint256) returns (address)",
-        "function removePool(address)",
-        "function mintELF(address, uint256)",
-        "function burnELF(address, uint256)",
-        "function mintEasyReward(address, uint256)",
-        "function getTotalEasyRewards() view returns (uint256)",
+        "function getPoolInfo(uint256) view returns (address poolAddr, address tokenAddr)",
+        "function getFeeInfo() view returns (uint24 feeRate, uint8 feeDecimal)",
+        "function isTokenSupported(address) view returns (bool)",
         "function getTVL() view returns (uint256)",
-        "function getTokenPrice(address) view returns (uint256, uint8)",
+        "function getELFPrice() view returns (uint256 price, uint8 decimal)",
+        "function addPool(address, uint256) returns (address)",
+        "function updatePoolSettings(address, uint256) returns (bool)",
+        "function updateFee(uint24, uint8)",
+        "function addLiquidity(address, uint256) payable",
+        "function removeLiquidity(address)",
+        "function swap(address, uint256, address) payable",
         // Events
         "event PoolAdded(address indexed tokenAddr, address indexed poolAddr, uint256 settings)",
-        "event PoolSettingsUpdated(address indexed poolAddr, uint256 newSettings)"
+        "event PoolSettingsUpdated(address indexed poolAddr, uint256 newSettings)",
+        "event LiquidityAdded(address indexed pool, address lp, uint256 tokenAmount, uint256 elfMinted)",
+        "event LiquidityRemoved(address indexed pool, address lp, uint256 tokenToLP, uint256 elfBurned)",
+        "event FeeUpdated(uint24 oldFee, uint8 oldDecimal, uint24 newFee, uint8 newDecimal)",
+        "event Swap(address trader, address indexed inToken, uint256 inAmount, address indexed outToken, uint256 outAmount)"
     ],
     
     Pool: [
@@ -134,20 +146,12 @@ const CONTRACT_ABIS = {
     ],
     
     Governance: [
-        "function easyToken() view returns (address)",
-        "function getProposalCount() view returns (uint256)",
-        "function getProposal(uint256) view returns (tuple(address proposer, string description, uint256 forVotes, uint256 againstVotes, uint256 startTime, uint256 endTime, bool executed, bool canceled))",
-        "function initProposal(address[] targets, uint256[] values, bytes[] calldatas, string description) returns (uint256)",
-        "function proveProposal(uint256, string)",
-        "function voteProposal(uint256, bool, uint256)",
-        "function execProposal(uint256)",
-        "function getVotingPower(address) view returns (uint256)",
-        "function hasVoted(uint256, address) view returns (bool)",
-        // Events
-        "event ProposalCreated(uint256 indexed proposalId, address indexed proposer, string description)",
-        "event ProposalProved(uint256 indexed proposalId, string proof)",
-        "event VoteCast(uint256 indexed proposalId, address indexed voter, bool support, uint256 votes)",
-        "event ProposalExecuted(uint256 indexed proposalId)"
+        "function nextProposalIndex() view returns (uint32)",
+        "function addAllowedAddress(address)",
+        "function initProposal(uint256 contentHash, uint256 gate, address targetContract, bytes param) returns (uint32)",
+        "function confirmProposal(uint32)",
+        "function voteProposal(uint32)",
+        "function executeProposal(uint32)"
     ]
 };
 

@@ -264,10 +264,15 @@ contract PoolManager is Ownable, IPoolManager {
         // Calculate slippage
         (uint slippageRatio, uint8 slippageDecimal) = IPool(outPool).estimateSlippage(params);
         
-        // Calculate exchange rate with slippage
+        // Calculate exchange rate with slippage using midpoint formula from README:
+        // p1 = oracle price (outToken per inToken), p2 = p1 - slippage (worse for trader)
+        // finalRate = (p1 + p2) / 2 = p1 * 2*scale / (2*scale + slippageRatio)
+        // This ensures traders get LESS outToken when slippage is positive (correct behavior).
         uint256 baseRate = (inTokenPrice * 10**outTokenDecimal) / outTokenPrice;
-        uint256 slippageAmount = (baseRate * slippageRatio) / (10**slippageDecimal);
-        uint256 actualRate = baseRate + slippageAmount;
+        uint256 scale = 10**slippageDecimal;
+        uint256 actualRate = slippageRatio > 0
+            ? (baseRate * 2 * scale) / (2 * scale + slippageRatio)
+            : baseRate;
         
         // Calculate output amount
         uint256 outAmount = (inAmount * actualRate) / (10**outTokenDecimal);
@@ -281,10 +286,12 @@ contract PoolManager is Ownable, IPoolManager {
         IPool(outPool).removeLiquidity(msg.sender, outAmount);
         
         // Mint EASY tokens for trading activity
+        uint8 inTokenDecimals18 = 18;
+        try ERC20(inToken).decimals() returns (uint8 d) { inTokenDecimals18 = d; } catch {}
         uint256 swapValueUSD = MathUtils.convertDecimal(
-            inAmount * inTokenPrice, 
-            0, 
-            inTokenDecimal + 18 // Assuming 18 decimals for token amount
+            inAmount * inTokenPrice,
+            0,
+            inTokenDecimals18 + inTokenDecimal
         );
         IEasyToken(EASYAddress).onSwap(msg.sender, swapValueUSD);
         

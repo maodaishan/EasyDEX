@@ -9,6 +9,7 @@ contract Governance is IGovernance,Ownable{
     mapping(address => bool) private allowedAddress;    //proposal address should be in this map,which can be called.
                                                         //should be Pools,PoolManager.
     mapping(uint32 => Proposal) private proposals;
+    mapping(uint32 => mapping(address => bool)) private voted; // track per-proposal votes
     address private immutable easyToken;    //only can vote by EASY token
     uint32 nextProposalIndex = 1;
     struct Proposal{
@@ -63,9 +64,11 @@ contract Governance is IGovernance,Ownable{
     function voteProposal(
         uint32 proposalIndex
     ) external{
+        require(!voted[proposalIndex][msg.sender], 'already voted on this proposal');
         uint256 balance = IERC20(easyToken).balanceOf(msg.sender);
         require(balance > 0, 'only EASY holder can vote');
         Proposal storage p = proposals[proposalIndex];
+        voted[proposalIndex][msg.sender] = true;
         p.voted = p.voted + balance;
     }
 

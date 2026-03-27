@@ -295,13 +295,21 @@ class EasyDEXApp {
     }
     
     async updateSwapInterface() {
-        // Update current algorithm mode
         try {
-            // Mock algorithm detection logic
-            const mode = Math.random() > 0.3 ? 'Pool Mode' : 'Settings Mode';
-            document.getElementById('slippageMode').textContent = mode;
-            document.getElementById('algorithmMode').textContent = mode;
-            document.getElementById('currentMode').textContent = mode;
+            if (this.contracts.poolManager) {
+                // Read on-chain TVL to determine algorithm mode indicator
+                const tvl = await this.contracts.poolManager.getTVL();
+                const tvlUSD = parseFloat(ethers.utils.formatUnits(tvl, 0));
+                const mode = tvlUSD >= 50000 ? 'Pool Mode' : 'Settings Mode';
+                document.getElementById('slippageMode').textContent = mode;
+                if (document.getElementById('algorithmMode')) {
+                    document.getElementById('algorithmMode').textContent = mode;
+                }
+                document.getElementById('currentMode').textContent = mode;
+
+                // Update TVL display
+                document.getElementById('totalTVL').textContent = '$' + tvlUSD.toLocaleString();
+            }
         } catch (error) {
             console.error('Failed to update swap interface:', error);
         }
@@ -397,34 +405,81 @@ class EasyDEXApp {
             this.showNotification('Please connect your wallet first', 'warning');
             return;
         }
-        
+
         const fromAmount = document.getElementById('fromAmount').value;
         if (!fromAmount || parseFloat(fromAmount) <= 0) {
             this.showNotification('Please enter a valid amount', 'warning');
             return;
         }
-        
+
         try {
+            this.showLoading('Approving token...');
+
+            const fromToken = TOKENS[this.selectedFromToken];
+            const toToken = TOKENS[this.selectedToToken];
+            const parsedAmount = parseTokenAmount(fromAmount, fromToken.decimals);
+
+            // Step 1: Approve PoolManager to spend the inToken (ERC20 only)
+            const isETH = fromToken.address.toLowerCase() === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
+            if (!isETH) {
+                const tokenContract = this.contracts.tokens[this.selectedFromToken];
+                const approveTx = await tokenContract.approve(
+                    CONTRACT_CONFIG.addresses.PoolManager,
+                    parsedAmount
+                );
+                await approveTx.wait();
+            }
+
             this.showLoading('Executing swap...');
-            
-            // For demo purposes, just show success message
-            // In real implementation, this would interact with pool contracts
-            await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate transaction time
-            
+
+            // Step 2: Call PoolManager.swap()
+            const txOptions = isETH ? { value: parsedAmount } : {};
+            const swapTx = await this.contracts.poolManager.swap(
+                fromToken.address,
+                parsedAmount,
+                toToken.address,
+                txOptions
+            );
+            await swapTx.wait();
+
+            // Step 3: Withdraw the outToken from the pool
+            this.showLoading('Withdrawing tokens...');
+            const outPoolAddress = await this.getPoolAddress(toToken.address);
+            if (outPoolAddress) {
+                const poolContract = new ethers.Contract(outPoolAddress, CONTRACT_ABIS.Pool, this.signer);
+                const withdrawTx = await poolContract.withdraw();
+                await withdrawTx.wait();
+            }
+
             this.hideLoading();
             this.showNotification('Swap completed successfully!', 'success');
-            
+
             // Clear form
             document.getElementById('fromAmount').value = '';
             document.getElementById('toAmount').value = '';
-            
+
             // Update balances
             await this.updateTokenBalances();
-            
+
         } catch (error) {
             this.hideLoading();
             this.showNotification('Swap failed: ' + error.message, 'error');
         }
+    }
+
+    async getPoolAddress(tokenAddress) {
+        try {
+            const count = await this.contracts.poolManager.getPoolCount();
+            for (let i = 0; i < count.toNumber(); i++) {
+                const [poolAddr, tokenAddr] = await this.contracts.poolManager.getPoolInfo(i);
+                if (tokenAddr.toLowerCase() === tokenAddress.toLowerCase()) {
+                    return poolAddr;
+                }
+            }
+        } catch (e) {
+            console.error('Failed to get pool address:', e);
+        }
+        return null;
     }
     
     calculateLiquidityB(amountA) {
@@ -475,32 +530,46 @@ class EasyDEXApp {
             this.showNotification('Please connect your wallet first', 'warning');
             return;
         }
-        
+
+        // EasyDEX adds liquidity per-token (not per-pair); use Token A field
         const amountA = document.getElementById('tokenAAmount').value;
-        const amountB = document.getElementById('tokenBAmount').value;
-        
-        if (!amountA || !amountB || parseFloat(amountA) <= 0 || parseFloat(amountB) <= 0) {
-            this.showNotification('Please enter valid amounts for both tokens', 'warning');
+        if (!amountA || parseFloat(amountA) <= 0) {
+            this.showNotification('Please enter a valid amount for Token A', 'warning');
             return;
         }
-        
+
         try {
+            this.showLoading('Approving token...');
+
+            const tokenSymbol = 'TKA';
+            const token = TOKENS[tokenSymbol];
+            const parsedAmount = parseTokenAmount(amountA, token.decimals);
+
+            // Step 1: Approve PoolManager to spend the token
+            const tokenContract = this.contracts.tokens[tokenSymbol];
+            const approveTx = await tokenContract.approve(
+                CONTRACT_CONFIG.addresses.PoolManager,
+                parsedAmount
+            );
+            await approveTx.wait();
+
             this.showLoading('Adding liquidity...');
-            
-            // For demo purposes, simulate transaction
-            await new Promise(resolve => setTimeout(resolve, 3000));
-            
+
+            // Step 2: Call PoolManager.addLiquidity()
+            const tx = await this.contracts.poolManager.addLiquidity(token.address, parsedAmount);
+            await tx.wait();
+
             this.hideLoading();
-            this.showNotification('Liquidity added successfully!', 'success');
-            
+            this.showNotification('Liquidity added successfully! ELF tokens minted.', 'success');
+
             // Clear form
             document.getElementById('tokenAAmount').value = '';
             document.getElementById('tokenBAmount').value = '';
-            
+
             // Update balances and positions
             await this.updateTokenBalances();
             await this.updateUserPositions();
-            
+
         } catch (error) {
             this.hideLoading();
             this.showNotification('Failed to add liquidity: ' + error.message, 'error');

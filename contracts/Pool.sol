@@ -94,7 +94,8 @@ contract Pool is Ownable, IPool {
         // Validate slippage targets are in reasonable range (0-100%)
         uint128 slippageTargets = uint128((newSettings & SETTINGS_TARGET_SLIPPAGES) >> 40);
         for(uint8 i = 0; i < 3; i++){
-            uint32 singleTargetSetting = uint32(slippageTargets & TARGET_SLIPPAGES_SINGLE_MASK);
+            // Each entry is 40 bits (5 bytes): lower 8 bits = ratio, upper 32 bits = edge
+            uint64 singleTargetSetting = uint64(slippageTargets & TARGET_SLIPPAGES_SINGLE_MASK);
             uint8 ratio = uint8(singleTargetSetting & 0xFF);
             require(ratio <= 100, "Slippage ratio cannot exceed 100%");
             slippageTargets = slippageTargets >> SINGLE_TARGET_SETTINGS_LENGTH;
@@ -182,7 +183,7 @@ contract Pool is Ownable, IPool {
         uint8 T = 0; // target Ratio, decimal of T is 2
         
         for(uint8 i = 0; i < 3; i++){
-            uint32 singleTargetSetting = uint32(slippageTargets & TARGET_SLIPPAGES_SINGLE_MASK);
+            uint64 singleTargetSetting = uint64(slippageTargets & TARGET_SLIPPAGES_SINGLE_MASK);
             (high, T) = getSingleTargetSetting(singleTargetSetting);
             
             if(poolValue >= low && poolValue < high){
@@ -214,10 +215,10 @@ contract Pool is Ownable, IPool {
     }
 
     function getSingleTargetSetting(
-        uint32 slippageTargets
+        uint64 slippageTargets
     ) private pure returns (uint32 high, uint8 ratio){
         ratio = uint8(slippageTargets & 0xFF);
-        high = (slippageTargets >> 8);
+        high = uint32(slippageTargets >> 8);
     }
 
     function estimateSlippageByPoolMode(
